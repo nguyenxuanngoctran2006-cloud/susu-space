@@ -1,0 +1,27 @@
+{
+  "name": "personal-knowledge-susu",
+  "version": "1.0.0",
+  "description": "A Notion-clone personal knowledge base built for learning and productivity.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nguyenxuanngoctran2006-cloud/personal-knowledge-susu.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nguyenxuanngoctran2006-cloud/personal-knowledge-susu/issues"
+  },
+  "homepage": "https://github.com/nguyenxuanngoctran2006-cloud/personal-knowledge-susu#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  }
+}
