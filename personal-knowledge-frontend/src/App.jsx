@@ -3,6 +3,9 @@ import axios from 'axios'
 import ReactQuill from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
 
+// 🌟 CẤU HÌNH ĐƯỜNG LINK BACKEND ONLINE CỦA BẠN (Gom về 1 chỗ để không bao giờ viết sai)
+const API_URL = 'https://susu-space.onrender.com/api';
+
 function App() {
   const [folders, setFolders] = useState([])
   const [notes, setNotes] = useState([])     
@@ -15,8 +18,6 @@ function App() {
   const [isMultiSelectFoldersMode, setIsMultiSelectFoldersMode] = useState(false)
   const [selectedFolderIds, setSelectedFolderIds] = useState([])
   const [editingNoteId, setEditingNoteId] = useState(null)
-
-  // 🌟 MỚI: Mảng lưu danh sách các ID ghi chú được ghim (Lưu tạm ở Frontend rất mượt)
   const [pinnedNoteIds, setPinnedNoteIds] = useState([])
 
   useEffect(() => {
@@ -29,30 +30,33 @@ function App() {
     handleCancelEdit(); 
   }, [selectedFolderId])
 
+  // 🌟 ĐÃ SỬA: Thêm đuôi /folders chuẩn API
   const fetchFolders = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/folders')
+      const response = await axios.get(`${API_URL}/folders`)
       setFolders(response.data)
     } catch (error) {
       console.error("❌ Lỗi lấy danh sách thư mục:", error)
     }
   }
 
+  // 🌟 ĐÃ SỬA: Thêm đuôi /notes chuẩn API
   const fetchNotes = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/notes')
+      const response = await axios.get(`${API_URL}/notes`)
       setNotes(response.data) 
     } catch (error) {
       console.error("❌ Lỗi lấy danh sách ghi chú:", error)
     }
   }
 
+  // 🌟 ĐÃ SỬA: Post đúng endpoint /folders
   const handleAddFolder = async () => {
     const folderName = prompt("🎨 Đặt tên cho thư mục rực rỡ mới nào:")
     if (!folderName || !folderName.trim()) return
 
     try {
-      await axios.post('http://localhost:3000/api/folders', { name: folderName })
+      await axios.post(`${API_URL}/folders`, { name: folderName })
       alert(`✨ Tạo không gian [${folderName}] thành công rồi nè bạn ơi!`);
       fetchFolders()
     } catch (error) {
@@ -60,13 +64,14 @@ function App() {
     }
   }
 
+  // 🌟 ĐÃ SỬA: Delete đúng endpoint /folders/:id
   const handleDeleteFolder = async (e, folderId, folderName) => {
     e.stopPropagation();
     const confirmDelete = window.confirm(`🗑️ CẢNH BÁO: Bạn có chắc muốn xóa không gian "${folderName}" này không?\n\n⚠️ Toàn bộ ghi chú nằm bên trong cũng sẽ bay màu theo đó nha!`);
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`http://localhost:3000/api/folders/${folderId}`);
+      await axios.delete(`${API_URL}/folders/${folderId}`);
       alert(`🎉 Đã dọn dẹp sạch sẽ không gian [${folderName}] rồi nhé!`);
       if (Number(selectedFolderId) === Number(folderId)) {
         setSelectedFolderId(null);
@@ -88,6 +93,7 @@ function App() {
     }
   }
 
+  // 🌟 ĐÃ SỬA: Xóa nhiều folders đúng endpoint /folders
   const handleBulkDeleteFolders = async () => {
     const count = selectedFolderIds.length;
     if (count === 0) return;
@@ -96,7 +102,7 @@ function App() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete('http://localhost:3000/api/folders', { data: { ids: selectedFolderIds } });
+      await axios.delete(`${API_URL}/folders`, { data: { ids: selectedFolderIds } });
       alert(`🎉 Đã dọn dẹp sạch sẽ ${count} thư mục rực rỡ!`);
       if (selectedFolderIds.includes(selectedFolderId)) {
         setSelectedFolderId(null);
@@ -111,6 +117,7 @@ function App() {
     }
   }
 
+  // 🌟 ĐÃ SỬA: Lưu / Sửa note đúng endpoint /notes và /notes/:id
   const handleSaveNote = async () => {
     if (!selectedFolderId) {
       alert("🧸 Chọn thư mục bên trái trước nhé bạn ơi!")
@@ -126,13 +133,13 @@ function App() {
 
     try {
       if (editingNoteId) {
-        await axios.put(`http://localhost:3000/api/notes/${editingNoteId}`, {
+        await axios.put(`${API_URL}/notes/${editingNoteId}`, {
           title: title,
           content: content
         });
         alert("🎉 Đã cập nhật ghi chú thành công rực rỡ!");
       } else {
-        await axios.post('http://localhost:3000/api/notes', {
+        await axios.post(`${API_URL}/notes`, {
           title: title,
           content: content,
           folder_id: cleanFolderId 
@@ -171,12 +178,11 @@ function App() {
     }
   }
 
-  // 🌟 MỚI: Logic Ghim / Bỏ ghim ghi chú
   const handleTogglePinNote = (noteId) => {
     if (pinnedNoteIds.includes(noteId)) {
-      setPinnedNoteIds(pinnedNoteIds.filter(id => id !== noteId)); // Bỏ ghim
+      setPinnedNoteIds(pinnedNoteIds.filter(id => id !== noteId));
     } else {
-      setPinnedNoteIds([...pinnedNoteIds, noteId]); // Thêm vào danh sách ghim
+      setPinnedNoteIds([...pinnedNoteIds, noteId]);
     }
   }
 
@@ -188,6 +194,7 @@ function App() {
     }
   }
 
+  // 🌟 ĐÃ SỬA: Xóa nhiều ghi chú đúng endpoint /notes
   const handleBulkDeleteNotes = async () => {
     const count = selectedNoteIds.length;
     if (count === 0) return;
@@ -196,7 +203,7 @@ function App() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete('http://localhost:3000/api/notes', { data: { ids: selectedNoteIds } });
+      await axios.delete(`${API_URL}/notes`, { data: { ids: selectedNoteIds } });
       alert(`🎉 Đã dọn dẹp gọn gàng ${count} ghi chú rồi nhé!`);
       setSelectedNoteIds([]); 
       if (selectedNoteIds.includes(editingNoteId)) handleCancelEdit(); 
@@ -207,7 +214,7 @@ function App() {
     }
   }
 
-  // Logic lọc ghi chú cũ + 🌟 MỚI: Tự động đưa các bài được ghim lên hàng đầu danh sách (Sort)
+  // Logic lọc ghi chú giữ nguyên
   const filteredNotes = notes
     .filter(note => {
       const isInsideFolder = Number(note.folder_id) === Number(selectedFolderId);
@@ -219,9 +226,9 @@ function App() {
     .sort((a, b) => {
       const aPinned = pinnedNoteIds.includes(a.id);
       const bPinned = pinnedNoteIds.includes(b.id);
-      if (aPinned && !bPinned) return -1; // a lên trước
-      if (!aPinned && bPinned) return 1;  // b lên trước
-      return 0; // Giữ nguyên thứ tự ID giảm dần
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
     })
 
   const currentFolder = folders.find(f => Number(f.id) === Number(selectedFolderId))
@@ -386,7 +393,7 @@ function App() {
           )}
         </div>
 
-        {/* 🌟 MỚI: TRẠM THỐNG KÊ SÁNG TẠO BỒNG BỀNH GÓC DƯỚI SIDEBAR */}
+        {/* TRẠM THỐNG KÊ SÁNG TẠO BỒNG BỀNH GÓC DƯỚI SIDEBAR */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%)',
           border: '1px solid rgba(139,92,246,0.15)', borderRadius: '20px', padding: '15px',
@@ -504,12 +511,10 @@ function App() {
                 ) : (
                   filteredNotes.map(note => {
                     const isChecked = selectedNoteIds.includes(note.id);
-                    // 🌟 MỚI: Kiểm tra bài viết này có được ghim hay không
                     const isPinned = pinnedNoteIds.includes(note.id);
 
                     return (
                       <div key={note.id} style={{ 
-                        // 🌟 MỚI: Nếu bài viết được ghim, đổi sang viền vàng Neon và nền phớt vàng hoàng kim siêu đẹp
                         background: isChecked ? 'rgba(254, 242, 242, 0.95)' : (isPinned ? 'linear-gradient(135deg, #fffbeb 0%, #fffdf5 100%)' : 'rgba(255, 255, 255, 0.9)'), 
                         border: isChecked ? '2px solid #fca5a5' : (isPinned ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.8)'),
                         padding: '25px', borderRadius: '24px', boxShadow: isPinned ? '0 10px 25px rgba(251,191,36,0.08)' : '0 10px 30px rgba(0, 0, 0, 0.02)',
@@ -521,7 +526,6 @@ function App() {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', paddingRight: '120px' }}>
                             <h4 style={{ margin: 0, color: '#1e1b4b', fontSize: '18px', fontWeight: '800' }}>
-                              {/* 🌟 MỚI: Nếu ghim thì hiện icon ghim đỏ rực lửa */}
                               {isPinned ? "🔥 " : "📌 "}{note.title}
                             </h4>
                             <span style={{ fontSize: '12px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '10px', fontWeight: '700', whiteSpace: 'nowrap' }}>
@@ -535,7 +539,6 @@ function App() {
                         {/* THANH TÁC VỤ TIỆN ÍCH CHO TỪNG THẺ GHI CHÚ */}
                         <div style={{ position: 'absolute', bottom: '20px', right: '25px', display: 'flex', gap: '8px' }}>
                           
-                          {/* 🌟 MỚI: NÚT GHIM / BỎ GHIM THÔNG MINH */}
                           <button
                             onClick={() => handleTogglePinNote(note.id)}
                             style={{
