@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios' // ✅ Đã sửa: Import chuẩn chỉnh, không bị lỗi
+import axios from 'axios'
 import ReactQuill from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
 
@@ -27,6 +27,19 @@ function App() {
   const [editingNoteId, setEditingNoteId] = useState(null)
   const [pinnedNoteIds, setPinnedNoteIds] = useState([])
 
+  // --- STATE PHỤ TRỢ DI ĐỘNG (MOBILE) ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+
+  // Tự động kiểm tra kích thước màn hình khi đổi góc xoay/kích cỡ thiết bị
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    };
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const getAuthHeader = () => ({
     headers: { Authorization: `Bearer ${token}` }
   })
@@ -41,6 +54,8 @@ function App() {
   useEffect(() => {
     setSelectedNoteIds([]);
     handleCancelEdit(); 
+    // Trên điện thoại, chọn thư mục xong thì tự động đóng menu trái lại cho thoáng
+    if (isMobile) setIsMobileMenuOpen(false);
   }, [selectedFolderId])
 
   const handleAuth = async (e) => {
@@ -303,11 +318,11 @@ function App() {
         <form onSubmit={handleAuth} style={{ 
           background: 'rgba(255, 255, 255, 0.45)', 
           backdropFilter: 'blur(20px)', 
-          padding: '40px', 
+          padding: isMobile ? '30px 20px' : '40px', 
           borderRadius: '30px', 
           border: '1px solid rgba(255, 255, 255, 0.5)', 
           boxShadow: '0 20px 40px rgba(0,0,0,0.05)', 
-          width: '360px', 
+          width: isMobile ? '90%' : '360px', 
           display: 'flex', 
           flexDirection: 'column', 
           gap: '20px',
@@ -324,14 +339,14 @@ function App() {
             placeholder="✉️ Nhập Email của bạn..." 
             value={authEmail} 
             onChange={(e) => setAuthEmail(e.target.value)} 
-            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit' }} 
+            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} 
           />
           <input 
             type="password" 
             placeholder="🔑 Nhập Mật khẩu..." 
             value={authPassword} 
             onChange={(e) => setAuthPassword(e.target.value)} 
-            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit' }} 
+            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} 
           />
           
           <button type="submit" style={{ padding: '14px', background: 'linear-gradient(90deg, #ff007f, #7928ca)', color: 'white', border: 'none', borderRadius: '14px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 8px 20px rgba(244,63,94,0.2)', fontFamily: 'inherit' }}>
@@ -351,19 +366,49 @@ function App() {
 
   // --- GIAO DIỆN CHÍNH SAU KHI ĐÃ ĐĂNG NHẬP THÀNH CÔNG ---
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', margin: 0, padding: 0, background: 'linear-gradient(135deg, #fef08a 0%, #fbcfe8 50%, #cffafe 100%)', position: 'fixed', top: 0, left: 0, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', margin: 0, padding: 0, background: 'linear-gradient(135deg, #fef08a 0%, #fbcfe8 50%, #cffafe 100%)', position: 'fixed', top: 0, left: 0, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
       
-      {/* 1. THANH SIDEBAR BÊN TRÁI */}
-      <div style={{ width: '340px', background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.4) 100%)', backdropFilter: 'blur(16px)', padding: '25px 24px', borderRight: '1px solid rgba(255, 255, 255, 0.5)', display: 'flex', flexDirection: 'column', gap: '15px', height: '100%', boxSizing: 'border-box', boxShadow: '10px 0 30px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '32px' }}>🚀</span>
-            <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '900', background: 'linear-gradient(45deg, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'inherit' }}>Susu Space</h3>
+      {/* 📱 THANH TOPBAR ĐIỀU HƯỚNG CHỈ HIỆN TRÊN ĐIỆN THOẠI */}
+      {isMobile && (
+        <div style={{ width: '100%', height: '65px', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', boxSizing: 'border-box', zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            <span style={{ fontSize: '22px' }}>{isMobileMenuOpen ? '✕' : '☰'}</span>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '900', background: 'linear-gradient(45deg, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Susu Space</h3>
           </div>
-          <button onClick={handleLogout} style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }} title="Đăng xuất khỏi hệ thống">🚪 Rời trạm</button>
+          <button onClick={handleLogout} style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>🚪 Rời trạm</button>
         </div>
+      )}
 
-        <p style={{ margin: 0, fontSize: '12px', color: '#4b5563', fontWeight: '700', wordBreak: 'break-all', backgroundColor: 'rgba(255,255,255,0.4)', padding: '8px 12px', borderRadius: '10px', fontFamily: 'inherit' }}>👤 Phi hành gia: <span style={{color: '#7928ca', fontFamily: 'inherit'}}>{userEmail}</span></p>
+      {/* 1. THANH SIDEBAR BÊN TRÁI (Hỗ trợ Drawer trượt trên Mobile) */}
+      <div style={{ 
+        width: isMobile ? '280px' : '340px', 
+        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.65) 100%)', 
+        backdropFilter: 'blur(20px)', 
+        padding: '25px 20px', 
+        borderRight: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.5)', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '15px', 
+        height: '100%', 
+        boxSizing: 'border-box', 
+        boxShadow: '10px 0 30px rgba(0,0,0,0.03)',
+        position: isMobile ? 'fixed' : 'relative',
+        top: 0,
+        left: isMobile ? (isMobileMenuOpen ? '0' : '-300px') : '0',
+        zIndex: 99,
+        transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}>
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '32px' }}>🚀</span>
+              <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '900', background: 'linear-gradient(45deg, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Susu Space</h3>
+            </div>
+            <button onClick={handleLogout} style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }} title="Đăng xuất khỏi hệ thống">🚪 Rời trạm</button>
+          </div>
+        )}
+
+        <p style={{ margin: 0, fontSize: '11px', color: '#4b5563', fontWeight: '700', wordBreak: 'break-all', backgroundColor: 'rgba(255,255,255,0.4)', padding: '8px 12px', borderRadius: '10px', fontFamily: 'inherit' }}>👤 Phi hành gia: <span style={{color: '#7928ca', fontFamily: 'inherit'}}>{userEmail}</span></p>
 
         <div style={{ position: 'relative' }}>
           <input type="text" value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} placeholder="🔍 Tìm nhanh ghi chú..." style={{ width: '100%', padding: '12px 15px', borderRadius: '14px', border: '1px solid rgba(139, 92, 246, 0.3)', backgroundColor: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', fontWeight: '600', outline: 'none', boxSizing: 'border-box', color: '#1e1b4b', fontFamily: 'inherit' }} />
@@ -375,11 +420,11 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', flex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '5px 0' }}>
             <p style={{ margin: 0, fontSize: '11px', color: '#6b7280', fontWeight: '800', letterSpacing: '0.5px', fontFamily: 'inherit' }}>🔮 DANH SÁCH KHÔNG GIAN</p>
-            <button onClick={() => { setIsMultiSelectFoldersMode(!isMultiSelectFoldersMode); setSelectedFolderIds([]); }} style={{ background: 'transparent', border: 'none', color: isMultiSelectFoldersMode ? '#ef4444' : '#3b82f6', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }}>{isMultiSelectFoldersMode ? "Hủy chọn" : "Chọn nhiều ⚡"}</button>
+            <button onClick={() => { setIsMultiSelectFoldersMode(!isMultiSelectFoldersMode); setSelectedFolderIds([]); }} style={{ background: 'transparent', border: 'none', color: isMultiSelectFoldersMode ? '#ef4444' : '#3b82f6', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }}>{isMultiSelectFoldersMode ? "Hủy" : "Chọn nhiều ⚡"}</button>
           </div>
 
           {isMultiSelectFoldersMode && selectedFolderIds.length > 0 && (
-            <button onClick={handleBulkDeleteFolders} style={{ width: '100%', padding: '10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑️ Xóa mục đã chọn ({selectedFolderIds.length})</button>
+            <button onClick={handleBulkDeleteFolders} style={{ width: '100%', padding: '10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑️ Xóa đã chọn ({selectedFolderIds.length})</button>
           )}
 
           {folders.length === 0 ? (
@@ -391,14 +436,14 @@ function App() {
               const isFolderChecked = selectedFolderIds.includes(folder.id)
 
               return (
-                <div key={folder.id} onClick={() => !isMultiSelectFoldersMode && setSelectedFolderId(folder.id)} onMouseEnter={() => setHoveredFolderId(folder.id)} onMouseLeave={() => setHoveredFolderId(null)} style={{ padding: '14px 16px', borderRadius: '16px', background: isFolderChecked ? 'rgba(254, 226, 226, 0.9)' : (isSelected ? 'linear-gradient(90deg, #3b82f6, #06b6d4)' : 'rgba(255, 255, 255, 0.5)'), border: isFolderChecked ? '1px solid #fca5a5' : (isSelected ? 'none' : '1px solid rgba(255,255,255,0.6)'), cursor: 'pointer', fontWeight: '700', color: isSelected && !isFolderChecked ? '#ffffff' : '#1e1b4b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s', position: 'relative', fontFamily: 'inherit' }}>
+                <div key={folder.id} onClick={() => !isMultiSelectFoldersMode && setSelectedFolderId(folder.id)} onMouseEnter={() => setHoveredFolderId(folder.id)} onMouseLeave={() => setHoveredFolderId(null)} style={{ padding: '12px 14px', borderRadius: '14px', background: isFolderChecked ? 'rgba(254, 226, 226, 0.9)' : (isSelected ? 'linear-gradient(90deg, #3b82f6, #06b6d4)' : 'rgba(255, 255, 255, 0.5)'), border: isFolderChecked ? '1px solid #fca5a5' : (isSelected ? 'none' : '1px solid rgba(255,255,255,0.6)'), cursor: 'pointer', fontWeight: '700', color: isSelected && !isFolderChecked ? '#ffffff' : '#1e1b4b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s', position: 'relative', fontFamily: 'inherit' }}>
                   {isMultiSelectFoldersMode ? (
                     <input type="checkbox" checked={isFolderChecked} onChange={(e) => handleToggleSelectFolder(e, folder.id)} style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#ef4444' }} />
                   ) : (
-                    <span style={{ fontSize: '18px' }}>{isSelected ? '🔥' : '🪐'}</span>
+                    <span style={{ fontSize: '16px' }}>{isSelected ? '🔥' : '🪐'}</span>
                   )}
                   <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '20px', fontFamily: 'inherit' }}>{folder.name}</div>
-                  {!isMultiSelectFoldersMode && isFolderHovered && (
+                  {!isMultiSelectFoldersMode && (isFolderHovered || isMobile) && (
                     <button onClick={(e) => handleDeleteFolder(e, folder.id, folder.name)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', borderRadius: '6px', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
                   )}
                 </div>
@@ -407,64 +452,71 @@ function App() {
           )}
         </div>
 
-        <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '20px', padding: '15px', display: 'flex', gap: '10px', justifyContent: 'space-around', marginTop: 'auto' }}>
-          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '20px', fontWeight: '900', color: '#8b5cf6', fontFamily: 'inherit' }}>{folders.length}</div><div style={{ fontSize: '10px', fontWeight: '800', color: '#6b7280', fontFamily: 'inherit' }}>📁 KHÔNG GIAN</div></div>
+        <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '20px', padding: '12px', display: 'flex', gap: '5px', justifyContent: 'space-around', marginTop: 'auto' }}>
+          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '18px', fontWeight: '900', color: '#8b5cf6', fontFamily: 'inherit' }}>{folders.length}</div><div style={{ fontSize: '9px', fontWeight: '800', color: '#6b7280', fontFamily: 'inherit' }}>📁 KHÔNG GIAN</div></div>
           <div style={{ width: '1px', backgroundColor: 'rgba(0,0,0,0.05)' }}></div>
-          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '20px', fontWeight: '900', color: '#10b981', fontFamily: 'inherit' }}>{notes.length}</div><div style={{ fontSize: '10px', fontWeight: '800', color: '#6b7280', fontFamily: 'inherit' }}>📝 GHI CHÉP</div></div>
+          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '18px', fontWeight: '900', color: '#10b981', fontFamily: 'inherit' }}>{notes.length}</div><div style={{ fontSize: '9px', fontWeight: '800', color: '#6b7280', fontFamily: 'inherit' }}>📝 GHI CHÉP</div></div>
         </div>
       </div>
 
-      {/* 2. VÙNG NỘI DUNG BÊN PHẢI */}
-      <div style={{ flex: 1, padding: '40px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+      {/* 📱 LỚP PHỦ NỀN KHI MỞ MENU TRÊN ĐIỆN THOẠI */}
+      {isMobile && isMobileMenuOpen && (
+        <div onClick={() => setIsMobileMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(4px)', zIndex: 98 }} />
+      )}
+
+      {/* 2. VÙNG NỘI DUNG BÊN PHẢI (STUDIO CHÍNH) */}
+      <div style={{ flex: 1, padding: isMobile ? '20px' : '40px', overflowY: 'auto', height: isMobile ? 'calc(100vh - 65px)' : '100%', boxSizing: 'border-box' }}>
         {!selectedFolderId ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80%', color: '#4c1d95', textAlign: 'center' }}>
-            <span style={{ fontSize: '70px', marginBottom: '10px' }}>🛸</span>
-            <h2 style={{ fontWeight: '900', fontSize: '28px', margin: '0 0 10px 0', fontFamily: 'inherit' }}>Chào mừng tới Susu Space!</h2>
-            <p style={{ fontSize: '16px', fontWeight: '600', opacity: 0.8, maxWidth: '400px', fontFamily: 'inherit' }}>Hãy chọn một không gian riêng của bạn bên trái để kích hoạt trạm sáng tạo nhé!</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80%', color: '#4c1d95', textAlign: 'center', padding: '20px' }}>
+            <span style={{ fontSize: isMobile ? '50px' : '70px', marginBottom: '10px' }}>🛸</span>
+            <h2 style={{ fontWeight: '900', fontSize: isMobile ? '22px' : '28px', margin: '0 0 10px 0', fontFamily: 'inherit' }}>Chào mừng tới Susu Space!</h2>
+            <p style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: '600', opacity: 0.8, maxWidth: '400px', fontFamily: 'inherit' }}>
+              {isMobile ? "👉 Hãy bấm vào nút Menu ☰ ở góc trái để chọn Không gian ghi chép của riêng bạn nhé!" : "Hãy chọn một không gian riêng của bạn bên trái để kích hoạt trạm sáng tạo nhé!"}
+            </p>
           </div>
         ) : (
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ margin: '0 0 30px 0', background: 'rgba(255,255,255,0.4)', padding: '20px', borderRadius: '24px', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.4)' }}>
+            <div style={{ margin: '0 0 20px 0', background: 'rgba(255,255,255,0.4)', padding: isMobile ? '15px' : '20px', borderRadius: '24px', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.4)' }}>
               <div>
-                <h2 style={{ margin: '0 0 5px 0', color: '#1e1b4b', fontSize: '28px', fontWeight: '900', fontFamily: 'inherit' }}>✨ Studio Sáng Tạo</h2>
-                <p style={{ color: '#475569', margin: 0, fontSize: '14px', fontWeight: '600', fontFamily: 'inherit' }}>Đang thuộc hành tinh: <span style={{ background: 'linear-gradient(45deg, #f43f5e, #ec4899)', padding: '4px 12px', borderRadius: '20px', color: '#ffffff', fontWeight: '800', fontSize: '13px', fontFamily: 'inherit' }}>{currentFolder?.name}</span></p>
+                <h2 style={{ margin: '0 0 5px 0', color: '#1e1b4b', fontSize: isMobile ? '20px' : '28px', fontWeight: '900', fontFamily: 'inherit' }}>✨ Studio Sáng Tạo</h2>
+                <p style={{ color: '#475569', margin: 0, fontSize: isMobile ? '12px' : '14px', fontWeight: '600', fontFamily: 'inherit' }}>Hành tinh: <span style={{ background: 'linear-gradient(45deg, #f43f5e, #ec4899)', padding: '4px 10px', borderRadius: '20px', color: '#ffffff', fontWeight: '800', fontSize: '12px', fontFamily: 'inherit' }}>{currentFolder?.name}</span></p>
               </div>
-              <span style={{ fontSize: '40px' }}>🎨</span>
+              <span style={{ fontSize: isMobile ? '30px' : '40px' }}>🎨</span>
             </div>
             
-            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.6)', padding: '35px', borderRadius: '32px', marginBottom: '40px', boxShadow: '0 20px 50px rgba(76, 29, 149, 0.08)' }}>
-              <h3 style={{ margin: '0 0 20px 0', color: '#1e1b4b', fontWeight: '800', fontSize: '18px', fontFamily: 'inherit' }}>{editingNoteId ? "✏️ Đang chỉnh sửa ghi chú cũ..." : `✏️ Viết ghi chú mới vào [${currentFolder?.name}]`}</h3>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="🚀 Đặt tiêu đề cực cháy tại đây..." style={{ width: '100%', padding: '16px 20px', marginBottom: '20px', borderRadius: '18px', border: '2px solid rgba(139, 92, 246, 0.2)', backgroundColor: '#ffffff', fontSize: '16px', fontWeight: '700', outline: 'none', boxSizing: 'border-box', color: '#1e1b4b', fontFamily: 'inherit' }} />
-              <div style={{ marginBottom: '20px', backgroundColor: '#ffffff', borderRadius: '18px', overflow: 'hidden', border: '2px solid rgba(139, 92, 246, 0.2)' }}>
-                <ReactQuill theme="snow" value={content} onChange={setContent} modules={quillModules} placeholder="Ghi lại những ý tưởng đột phá của bạn tại đây..." style={{ height: '220px', marginBottom: '42px', fontFamily: 'inherit' }} />
+            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.6)', padding: isMobile ? '20px 15px' : '35px', borderRadius: '32px', marginBottom: '30px', boxShadow: '0 20px 50px rgba(76, 29, 149, 0.08)' }}>
+              <h3 style={{ margin: '0 0 15px 0', color: '#1e1b4b', fontWeight: '800', fontSize: isMobile ? '15px' : '18px', fontFamily: 'inherit' }}>{editingNoteId ? "✏️ Đang sửa ghi chú cũ..." : `✏️ Viết ghi chú mới vào [${currentFolder?.name}]`}</h3>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="🚀 Đặt tiêu đề cực cháy tại đây..." style={{ width: '100%', padding: '14px 18px', marginBottom: '15px', borderRadius: '18px', border: '2px solid rgba(139, 92, 246, 0.2)', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '700', outline: 'none', boxSizing: 'border-box', color: '#1e1b4b', fontFamily: 'inherit' }} />
+              <div style={{ marginBottom: '15px', backgroundColor: '#ffffff', borderRadius: '18px', overflow: 'hidden', border: '2px solid rgba(139, 92, 246, 0.2)' }}>
+                <ReactQuill theme="snow" value={content} onChange={setContent} modules={quillModules} placeholder="Ghi lại những ý tưởng đột phá của bạn tại đây..." style={{ height: isMobile ? '160px' : '220px', marginBottom: '42px', fontFamily: 'inherit' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                {editingNoteId && <button onClick={handleCancelEdit} style={{ padding: '14px 25px', background: 'rgba(107, 114, 128, 0.1)', color: '#4b5563', border: 'none', borderRadius: '18px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }}>Hủy sửa</button>}
-                <button onClick={handleSaveNote} style={{ padding: '14px 35px', background: editingNoteId ? 'linear-gradient(90deg, #a855f7, #06b6d4)' : 'linear-gradient(90deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: '18px', fontWeight: '800', fontSize: '16px', cursor: 'pointer', fontFamily: 'inherit' }}>{editingNoteId ? "💾 Cập Nhật Ghi Chú" : "🚀 Bắn Lên Đám Mây"}</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+                {editingNoteId && <button onClick={handleCancelEdit} style={{ padding: '10px 20px', background: 'rgba(107, 114, 128, 0.1)', color: '#4b5563', border: 'none', borderRadius: '14px', fontWeight: '800', cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Hủy sửa</button>}
+                <button onClick={handleSaveNote} style={{ padding: isMobile ? '12px 20px' : '14px 35px', background: editingNoteId ? 'linear-gradient(90deg, #a855f7, #06b6d4)' : 'linear-gradient(90deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: isMobile ? '14px' : '16px', cursor: 'pointer', fontFamily: 'inherit' }}>{editingNoteId ? "💾 Cập Nhật" : "🚀 Bắn Lên Mây"}</button>
               </div>
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ color: '#1e1b4b', fontSize: '20px', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'inherit' }}>
-                  <span>📚</span> {searchKeyword ? `Kết quả tìm kiếm từ "${searchKeyword}"` : 'Kho Ghi Chép Diệu Kỳ'} ({filteredNotes.length})
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '10px', marginBottom: '25px' }}>
+                <h3 style={{ color: '#1e1b4b', fontSize: isMobile ? '17px' : '20px', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'inherit' }}>
+                  <span>📚</span> {searchKeyword ? `Kết quả cho "${searchKeyword}"` : 'Kho Ghi Chép Diệu Kỳ'} ({filteredNotes.length})
                 </h3>
                 {filteredNotes.length > 0 && (
-                  <button onClick={() => handleSelectAllVisibleNotes(filteredNotes)} style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(139,92,246,0.3)', padding: '6px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', color: '#4c1d95', cursor: 'pointer', fontFamily: 'inherit' }}>{selectedNoteIds.length === filteredNotes.length ? "🚫 Bỏ chọn tất cả" : "✅ Chọn tất cả mục"}</button>
+                  <button onClick={() => handleSelectAllVisibleNotes(filteredNotes)} style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(139,92,246,0.3)', padding: '6px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', color: '#4c1d95', cursor: 'pointer', fontFamily: 'inherit', width: isMobile ? '100%' : 'auto' }}>{selectedNoteIds.length === filteredNotes.length ? "🚫 Bỏ chọn tất cả" : "✅ Chọn tất cả mục"}</button>
                 )}
               </div>
 
               {selectedNoteIds.length > 0 && (
-                <div style={{ background: 'linear-gradient(90deg, #fef2f2, #fee2e2)', border: '1px solid #fca5a5', padding: '15px 20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}>
-                  <span style={{ color: '#991b1b', fontWeight: '700', fontSize: '14px' }}>🔥 Đang chọn <span style={{fontSize: '16px', color: '#ef4444'}}>{selectedNoteIds.length}</span> ghi chú...</span>
-                  <button onClick={handleBulkDeleteNotes} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '12px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑️ Xóa các mục đã chọn ({selectedNoteIds.length})</button>
+                <div style={{ background: 'linear-gradient(90deg, #fef2f2, #fee2e2)', border: '1px solid #fca5a5', padding: '12px 15px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}>
+                  <span style={{ color: '#991b1b', fontWeight: '700', fontSize: '13px' }}>🔥 Chọn <span style={{fontSize: '15px', color: '#ef4444'}}>{selectedNoteIds.length}</span> mục...</span>
+                  <button onClick={handleBulkDeleteNotes} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '12px', fontWeight: '800', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑️ Xóa loạt</button>
                 </div>
               )}
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {filteredNotes.length === 0 ? (
-                  <div style={{ background: 'rgba(255,255,255,0.3)', padding: '40px', borderRadius: '24px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.6)', fontFamily: 'inherit' }}>
-                    <p style={{ color: '#4c1d95', margin: 0, fontStyle: 'italic', fontWeight: '600', fontFamily: 'inherit' }}>{searchKeyword ? '🔍 Không tìm thấy ghi chú nào khớp...' : 'Hành tinh này chưa có sự sống 🪐 Viết bài đầu tiên ngay nào!'}</p>
+                  <div style={{ background: 'rgba(255,255,255,0.3)', padding: '30px', borderRadius: '24px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.6)', fontFamily: 'inherit' }}>
+                    <p style={{ color: '#4c1d95', margin: 0, fontStyle: 'italic', fontWeight: '600', fontFamily: 'inherit', fontSize: '13px' }}>{searchKeyword ? '🔍 Không tìm thấy ghi chú nào khớp...' : 'Hành tinh này chưa có sự sống 🪐 Viết bài đầu tiên ngay nào!'}</p>
                   </div>
                 ) : (
                   filteredNotes.map(note => {
@@ -472,18 +524,21 @@ function App() {
                     const isPinned = pinnedNoteIds.includes(note.id);
 
                     return (
-                      <div key={note.id} style={{ background: isChecked ? 'rgba(254, 242, 242, 0.95)' : (isPinned ? 'linear-gradient(135deg, #fffbeb 0%, #fffdf5 100%)' : 'rgba(255, 255, 255, 0.9)'), border: isChecked ? '2px solid #fca5a5' : (isPinned ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.8)'), padding: '25px', borderRadius: '24px', display: 'flex', gap: '15px', alignItems: 'flex-start', position: 'relative', fontFamily: 'inherit' }}>
-                        <input type="checkbox" checked={isChecked} onChange={() => handleToggleSelectNote(note.id)} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#ef4444', marginTop: '3px' }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <h4 style={{ margin: 0, color: '#1e1b4b', fontSize: '18px', fontWeight: '800', fontFamily: 'inherit' }}>{isPinned ? "🔥 " : "📌 "}{note.title}</h4>
-                            <span style={{ marginLeft: 'auto', fontSize: '12px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '6px 12px', borderRadius: '10px', fontWeight: '700', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>🗓️ {formatDateTime(note.created_at)}</span>
-                          </div>
-                          <div className="ql-editor" dangerouslySetInnerHTML={{ __html: note.content }} style={{ color: '#334155', fontSize: '15px', lineHeight: '1.7', padding: 0, fontFamily: 'inherit' }} />
+                      <div key={note.id} style={{ background: isChecked ? 'rgba(254, 242, 242, 0.95)' : (isPinned ? 'linear-gradient(135deg, #fffbeb 0%, #fffdf5 100%)' : 'rgba(255, 255, 255, 0.9)'), border: isChecked ? '2px solid #fca5a5' : (isPinned ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.8)'), padding: isMobile ? '15px' : '25px', borderRadius: '24px', display: 'flex', gap: '12px', alignItems: 'flex-start', position: 'relative', fontFamily: 'inherit', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
+                          <input type="checkbox" checked={isChecked} onChange={() => handleToggleSelectNote(note.id)} style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#ef4444' }} />
+                          <h4 style={{ margin: 0, color: '#1e1b4b', fontSize: isMobile ? '16px' : '18px', fontWeight: '800', fontFamily: 'inherit', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{isPinned ? "🔥 " : "📌 "}{note.title}</h4>
                         </div>
-                        <div style={{ position: 'absolute', bottom: '20px', right: '25px', display: 'flex', gap: '8px' }}>
-                          <button onClick={() => handleTogglePinNote(note.id)} style={{ background: isPinned ? '#fbbf24' : 'rgba(251, 191, 36, 0.1)', color: isPinned ? '#ffffff' : '#d97706', border: 'none', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>{isPinned ? "❤️ Đã ghim" : "📌 Ghim"}</button>
-                          <button onClick={() => handleStartEditNote(note)} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Sửa</button>
+                        
+                        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', marginTop: '-5px' }}>
+                          <span style={{ fontSize: '11px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '8px', fontWeight: '700', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>🗓️ {formatDateTime(note.created_at)}</span>
+                        </div>
+                        
+                        <div className="ql-editor" dangerouslySetInnerHTML={{ __html: note.content }} style={{ color: '#334155', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', padding: 0, fontFamily: 'inherit', width: '100%', wordBreak: 'break-word', marginTop: '5px', marginBottom: '35px' }} />
+                        
+                        <div style={{ position: 'absolute', bottom: '12px', right: '15px', display: 'flex', gap: '6px' }}>
+                          <button onClick={() => handleTogglePinNote(note.id)} style={{ background: isPinned ? '#fbbf24' : 'rgba(251, 191, 36, 0.1)', color: isPinned ? '#ffffff' : '#d97706', border: 'none', borderRadius: '8px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>{isPinned ? "Đã ghim" : "📌 Ghim"}</button>
+                          <button onClick={() => handleStartEditNote(note)} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', borderRadius: '8px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Sửa</button>
                         </div>
                       </div>
                     )
