@@ -1,72 +1,98 @@
 const express = require('express');
-const pool = require('./db'); // Nhập cấu hình database từ file db.js
+const pool = require('./db');
+const cors = require('cors');
+const jwt = require('jsonwebtoken'); // Thư viện tạo và kiểm tra Token
+
 const app = express();
-const cors = require('cors'); // Thêm cors mở khóa kết nối
-
-app.use(cors());              // Kích hoạt CORS chặn lỗi bảo mật trình duyệt
-const PORT = 3000;
-
-// Cho phép Express đọc được dữ liệu JSON gửi lên
+app.use(cors());
 app.use(express.json());
 
-// 1. API TRANG CHỦ
-app.get('/', (req, res) => {
-    res.send('Server Note App đang hoạt động ngon lành!');
-});
+const PORT = 3000;
+const JWT_SECRET = 'susu_space_bi_mat_sieu_cap_2026'; // Chìa khóa mã hóa Token
 
-// 2. API THÊM GHI CHÚ MỚI (Bản vá lỗi chống null / chống sập khóa ngoại)
-app.post('/api/notes', async (req, res) => {
+// ==========================================
+// 🛡️ MIDDLEWARE: KIỂM TRA ĐĂNG NHẬP (AUTH)
+// ==========================================
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Lấy token từ chuỗi "Bearer <token>"
+
+    if (!token) return res.status(401).json({ error: "Bạn chưa đăng nhập nha!" });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: "Phiên đăng nhập hết hạn hoặc không hợp lệ!" });
+        req.user = user; // Lưu thông tin người dùng vào req để các API sau sử dụng
+        next();
+    });
+};
+
+// ==========================================
+// 🔑 API: ĐĂNG KÝ VÀ ĐĂNG NHẬP TRỰC TIẾP QUA SUPABASE AUTH
+// ==========================================
+
+// 1. API ĐĂNG KÝ (Tạo tài khoản)
+app.post('/api/auth/register', async (req, res) => {
+    const { email, password } = req.body;
     try {
-        let { title, content, folder_id } = req.body; 
-        
-        // 🌟 THÊM ĐOẠN KIỂM TRA NÀY: Nếu folder_id gửi lên bằng 0, hoặc không phải là số, hoặc null
-        // thì ép nó về null hẳn để PostgreSQL hiểu là ghi chú tự do, không bắt bẻ lỗi khóa ngoại nữa.
-        if (!folder_id || Number(folder_id) <= 0 || isNaN(Number(folder_id))) {
-            folder_id = null;
+        // Kiểm tra xem email đã tồn tại trong DB chưa
+        const userExist = await pool.query("SELECT * FROM auth.users WHERE email = $1", [email]);
+        if (userExist.rows.length > 0) {
+            return res.status(400).json({ error: "Email này đã được đăng ký rồi bạn ơi!" });
         }
-        
-        const newNote = await pool.query(
-            "INSERT INTO notes (title, content, folder_id) VALUES ($1, $2, $3) RETURNING *",
-            [title, content, folder_id]
+
+        // Tạo user mới vào bảng auth.users của Supabase (Sử dụng extension pgcrypto để băm pass nếu có, hoặc lưu cơ bản phục vụ học tập)
+        // Lưu ý: Ở đây ta dùng hàm gen_random_uuid() của Postgres để tạo id cho nhanh gọn
+        const newUser = await pool.query(
+            "INSERT INTO auth.users (id, email, encrypted_password, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, NOW(), NOW()) RETURNING id, email",
+            [email, password] // Khuyên dùng bcrypt để hash password ở dự án thực tế, ở đây viết gọn để bạn dễ tiếp cận
         );
-        res.json({ message: "Thêm ghi chú thành công!", data: newNote.rows[0] });
+
+        res.json({ message: "Đăng ký tài khoản thành công rực rỡ!", user: newUser.rows[0] });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 3. API ĐỌC TẤT CẢ GHI CHÚ
-app.get('/api/notes', async (req, res) => {
+// 2. API ĐĂNG NHẬP (Lấy Token)
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
     try {
-        const allNotes = await pool.query("SELECT * FROM notes ORDER BY id DESC");
-        res.json(allNotes.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const userRes = await pool.query("SELECT * FROM auth.users WHERE email = $1 AND encrypted_password = $2", [email, password]);
+        if (userRes.rows.length === 0) {
+            return res.status(400).json({ error: "Sai tài khoản hoặc mật khẩu rồi nè!" });
+        }
 
-// 4. API XÓA MỘT GHI CHÚ
-app.delete('/api/notes/:id', async (req, res) => {
-    try {
-        const { id } = req.params; 
-        await pool.query("DELETE FROM notes WHERE id = $1", [id]);
-        res.json({ message: `Đã xóa thành công ghi chú có ID = ${id}` });
+        const user = userRes.rows[0];
+        // Tạo token gửi về cho Frontend giữ
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.json({ message: "Đăng nhập thành công!", token, user: { id: user.id, email: user.email } });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // ==========================================
-// GIAI ĐOẠN 2: API QUẢN LÝ THƯ MỤC (FOLDERS)
+// 📂 API: QUẢN LÝ THƯ MỤC (LỌC THEO USER ĐĂNG NHẬP)
 // ==========================================
 
-// 1. API TẠO THƯ MỤC MỚI
-app.post('/api/folders', async (req, res) => {
+// LẤY THƯ MỤC CỦA RIÊNG MÌNH
+app.get('/api/folders', authenticateToken, async (req, res) => {
     try {
-        const { name, parent_id } = req.body; 
+        const myFolders = await pool.query("SELECT * FROM folders WHERE user_id = $1 ORDER BY id ASC", [req.user.id]);
+        res.json(myFolders.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// TẠO THƯ MỤC MỚI CHÍNH CHỦ
+app.post('/api/folders', authenticateToken, async (req, res) => {
+    try {
+        const { name } = req.body;
         const newFolder = await pool.query(
-            "INSERT INTO folders (name, parent_id) VALUES ($1, $2) RETURNING *",
-            [name, parent_id || null]
+            "INSERT INTO folders (name, user_id) VALUES ($1, $2) RETURNING *",
+            [name, req.user.id]
         );
         res.json({ message: "Tạo thư mục thành công!", data: newFolder.rows[0] });
     } catch (err) {
@@ -74,105 +100,90 @@ app.post('/api/folders', async (req, res) => {
     }
 });
 
-// 2. API LẤY TẤT CẢ THƯ MỤC
-app.get('/api/folders', async (req, res) => {
+// XÓA NHIỀU THƯ MỤC CỦA MÌNH
+app.delete('/api/folders', authenticateToken, async (req, res) => {
     try {
-        const allFolders = await pool.query("SELECT * FROM folders ORDER BY id ASC");
-        res.json(allFolders.rows);
+        const { ids } = req.body;
+        await pool.query("DELETE FROM notes WHERE folder_id = ANY($1) AND user_id = $2", [ids, req.user.id]);
+        await pool.query("DELETE FROM folders WHERE id = ANY($1) AND user_id = $2", [ids, req.user.id]);
+        res.json({ message: "Đã xóa sạch các thư mục bạn chọn!" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-
-// API XÓA MỘT HOẶC NHIỀU GHI CHÚ CÙNG LÚC (Cập nhật hỗ trợ xóa hàng loạt)
-app.delete('/api/notes', async (req, res) => {
-    try {
-        // Nhận vào một mảng các ID dạng: [1, 2, 3]
-        const { ids } = req.body; 
-        
-        if (!ids || !Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ error: "Mảng ID không hợp lệ!" });
-        }
-
-        // Câu lệnh SQL xóa tất cả các ID nằm trong danh sách truyền lên
-        await pool.query("DELETE FROM notes WHERE id = ANY($1)", [ids]);
-        res.json({ message: "Đã xóa các ghi chú được chọn thành công!" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// API XÓA THƯ MỤC (Sửa dứt điểm lỗi xóa thất bại)
-// API XÓA THƯ MỤC CHUẨN SQL (Sửa dứt điểm lỗi xóa thất bại)
-app.delete('/api/folders/:id', async (req, res) => {
+app.delete('/api/folders/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // 1. Xóa toàn bộ ghi chú thuộc thư mục này trước để tránh lỗi Khóa ngoại (Foreign Key)
-        await pool.query("DELETE FROM notes WHERE folder_id = $1", [id]);
-        
-        // 2. Sau khi ghi chú đã sạch sẽ, tiến hành xóa thư mục
-        const result = await pool.query("DELETE FROM folders WHERE id = $1 RETURNING *", [id]);
-        
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Không tìm thấy thư mục này để xóa!" });
-        }
-        
-        res.json({ message: "Đã dọn dẹp sạch sẽ thư mục và các ghi chú bên trong!" });
+        await pool.query("DELETE FROM notes WHERE folder_id = $1 AND user_id = $2", [id, req.user.id]);
+        await pool.query("DELETE FROM folders WHERE id = $1 AND user_id = $2", [id, req.user.id]);
+        res.json({ message: "Xóa thư mục thành công!" });
     } catch (err) {
-        console.error("Lỗi Backend khi xóa thư mục:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// API XÓA NHIỀU THƯ MỤC CÙNG LÚC (Dọn dẹp hàng loạt)
-app.delete('/api/folders', async (req, res) => {
+// ==========================================
+// 📝 API: QUẢN LÝ GHI CHÚ (LỌC THEO USER ĐĂNG NHẬP)
+// ==========================================
+
+// LẤY GHI CHÚ CHÍNH CHỦ
+app.get('/api/notes', authenticateToken, async (req, res) => {
     try {
-        const { ids } = req.body; // Nhận mảng ID dạng: [1, 2, 3]
-        
-        if (!ids || !Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ error: "Mảng ID thư mục không hợp lệ!" });
-        }
-
-        // Bước 1: Xóa toàn bộ ghi chú nằm trong tất cả các thư mục được chọn trước
-        await pool.query("DELETE FROM notes WHERE folder_id = ANY($1)", [ids]);
-        
-        // Bước 2: Tiến hành xóa toàn bộ các thư mục này
-        await pool.query("DELETE FROM folders WHERE id = ANY($1)", [ids]);
-        
-        res.json({ message: "Đã dọn dẹp sạch sẽ các thư mục được chọn và ghi chú bên trong!" });
+        const myNotes = await pool.query("SELECT * FROM notes WHERE user_id = $1 ORDER BY id DESC", [req.user.id]);
+        res.json(myNotes.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 🌟 API MỚI: CẬP NHẬT TIÊU ĐỀ VÀ NỘI DUNG CỦA GHI CHÚ CŨ
-app.put('/api/notes/:id', async (req, res) => {
+// THÊM GHI CHÚ MỚI GẮN USER_ID
+app.post('/api/notes', authenticateToken, async (req, res) => {
+    try {
+        let { title, content, folder_id } = req.body;
+        if (!folder_id || Number(folder_id) <= 0 || isNaN(Number(folder_id))) folder_id = null;
+
+        const newNote = await pool.query(
+            "INSERT INTO notes (title, content, folder_id, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
+            [title, content, folder_id, req.user.id]
+        );
+        res.json({ message: "Thêm ghi chú thành công!", data: newNote.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// SỬA GHI CHÚ CHÍNH CHỦ
+app.put('/api/notes/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { title, content } = req.body;
-
-        if (!title.trim()) {
-            return res.status(400).json({ error: "Tiêu đề không được để trống nha!" });
-        }
-
-        // Câu lệnh SQL cập nhật dữ liệu dựa theo ID ghi chú
         const result = await pool.query(
-            "UPDATE notes SET title = $1, content = $2 WHERE id = $3 RETURNING *",
-            [title, content, id]
+            "UPDATE notes SET title = $1, content = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+            [title, content, id, req.user.id]
         );
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Không tìm thấy ghi chú này để cập nhật!" });
-        }
-
-        res.json({ message: "Cập nhật ghi chú thành công rồi nè!", note: result.rows[0] });
+        res.json({ message: "Cập nhật thành công!", note: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+// XÓA NHIỀU GHI CHÚ CHÍNH CHỦ
+app.delete('/api/notes', authenticateToken, async (req, res) => {
+    try {
+        const { ids } = req.body;
+        await pool.query("DELETE FROM notes WHERE id = ANY($1) AND user_id = $2", [ids, req.user.id]);
+        res.json({ message: "Đã xóa thành công!" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// KIỂM TRA TRẠNG THÁI SERVER
+app.get('/', (req, res) => {
+    res.send('🚀 Trạm không gian Susu Space Auth đang chạy cực ngon!');
+});
+
 app.listen(PORT, () => {
-    console.log(`Server đang chạy cực mượt tại: http://localhost:${PORT}`);
+    console.log(`Server đang chạy mượt mà tại cổng ${PORT}`);
 });
