@@ -78,12 +78,13 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 3. API: YÊU CẦU SUPABASE GỬI MAIL ĐỔI MẬT KHẨU
+// 3. API: YÊU CẦU SUPABASE GỬI MAIL ĐỔI MẬT KHẨU
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
-        // Lệnh này giờ sẽ chạy 100% vì user đã được đồng bộ vào hệ thống Auth
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://susu-space-frontend.vercel.app/reset-password', // Bạn nên đổi hẳn sang link Vercel này khi deploy
+            // 🌟 SỬA CHÍNH XÁC THÀNH LINK VERCEL THẬT CỦA BẠN Ở ĐÂY
+            redirectTo: 'https://susu-space.vercel.app/reset-password', 
         });
 
         if (error) return res.status(400).json({ error: error.message });
