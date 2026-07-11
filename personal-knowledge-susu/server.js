@@ -191,8 +191,8 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'email_cua_ban@gmail.com', // Email dùng để gửi đi
-        pass: 'mat_khau_ung_dung_cua_ban' // Mật khẩu ứng dụng gồm 16 ký tự của Google
+        user: 'nguyenxuanngoctran2006@gmail.com', // Email dùng để gửi đi
+        pass: 'bdyc nbve kdli uiga' // Mật khẩu ứng dụng gồm 16 ký tự của Google
     }
 });
 
@@ -215,7 +215,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
         // Cấu hình nội dung thư gửi đi
         const mailOptions = {
-            from: '"Susu Space 🔮" <email_cua_ban@gmail.com>',
+            from: '"Susu Space 🔮" <nguyenxuanngoctran2006@gmail.com>',
             to: email,
             subject: '🔮 Mã Khôi Phục Mật Khẩu Susu Space Của Bạn',
             html: `
