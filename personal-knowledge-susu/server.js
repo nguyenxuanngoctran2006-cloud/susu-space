@@ -88,15 +88,19 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            // 🌟 SỬA CHÍNH XÁC THÀNH LINK VERCEL THẬT CỦA BẠN Ở ĐÂY
-            redirectTo: 'https://susu-space.vercel.app/reset-password', 
+            redirectTo: 'https://susu-space.vercel.app/reset-password',
         });
 
-        if (error) return res.status(400).json({ error: error.message });
+        // Nếu Supabase trả về lỗi, ép lỗi đó thành dạng chữ (string) để gửi về Frontend
+        if (error) {
+            console.error("❌ Lỗi Supabase Auth:", error); // In ra log Render để bạn tự xem
+            return res.status(400).json({ error: error.message || JSON.stringify(error) });
+        }
 
         res.json({ message: "Hệ thống đã gửi một đường link đặt lại mật khẩu vào Email của bạn rồi nhé!" });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        // Ép kiểu lỗi hệ thống nếu bị crash dữ liệu
+        res.status(500).json({ error: err.message || JSON.stringify(err) });
     }
 });
 
@@ -174,6 +178,33 @@ app.delete('/api/notes', authenticateToken, async (req, res) => {
         await pool.query("DELETE FROM notes WHERE id = ANY($1) AND user_id = $2", [ids, req.user.id]);
         res.json({ message: "Đã xóa thành công!" });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 4. API: TIẾP NHẬN VÀ CẬP NHẬT MẬT KHẨU MỚI VÀO SUPABASE
+app.post('/api/auth/update-password', async (req, res) => {
+    const { password } = req.body;
+    // Lấy mã access_token cứu hộ mà Frontend gửi lên trong headers
+    const authHeader = req.headers['authorization'];
+    const accessToken = authHeader && authHeader.split(' ')[1];
+
+    if (!accessToken) {
+        return res.status(401).json({ error: "Thiếu mã xác thực cứu hộ, không thể đổi pass!" });
+    }
+
+    try {
+        // Dùng chính token cứu hộ của người dùng để thực hiện lệnh đổi mật khẩu an toàn
+        const { error } = await supabase.auth.admin.updateUserById(
+            // Supabase sẽ tự giải mã token để biết user nào đang thực hiện
+            (await supabase.auth.getUser(accessToken)).data.user.id,
+            { password: password }
+        );
+
+        if (error) return res.status(400).json({ error: error.message });
+
+        res.json({ message: "Đổi mật khẩu thành công rực rỡ! Tiến hành đăng nhập lại được rồi bạn ơi." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/', (req, res) => {
