@@ -88,7 +88,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://susu-space.vercel.app/reset-password',
+            redirectTo: 'https://susu-space.vercel.app/',
         });
 
         // Nếu Supabase trả về lỗi, ép lỗi đó thành dạng chữ (string) để gửi về Frontend
