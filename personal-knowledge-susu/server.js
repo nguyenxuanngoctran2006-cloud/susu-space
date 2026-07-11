@@ -189,17 +189,16 @@ const nodemailer = require('nodemailer');
 // ⚙️ Cấu hình hòm thư gửi Email tự động (Sử dụng Gmail)
 // Lưu ý: Để chạy được, bạn cần vào tài khoản Google tạo "Mật khẩu ứng dụng" (App Password)
 // ⚙️ CẤU HÌNH GỬI MAIL (ĐÃ SỬA ĐỂ PHÙ HỢP VỚI MÔI TRƯỜNG CLOUD CỦA RENDER)
+// ⚙️ CẤU HÌNH PHƯƠNG ÁN 1: DÙNG CỔNG SSL 465
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com", // Cấu hình tường minh host
-    port: 587,              // Sử dụng cổng 587 để chạy STARTTLS
-    secure: false,          // Đặt false khi dùng cổng 587
-    requireTLS: true,       // Bắt buộc sử dụng bảo mật mã hóa TLS
+    host: "smtp.gmail.com",
+    port: 465,              // Đổi sang cổng 465
+    secure: true,           // Bắt buộc đặt true khi dùng cổng 465
     auth: {
-        user: 'nguyenxuanngoctran2006@gmail.com', // Email thật của bạn
-        pass: 'bdyc nbve kdli uiga' // 16 ký tự mật khẩu ứng dụng viết liền tù tì
+        user: 'nguyenxuanngoctran2006@gmail.com',
+        pass: 'bdyc nbve kdli uiga' // 16 ký tự mật khẩu ứng dụng viết liền
     },
     tls: {
-        // Thuộc tính quan trọng: Ngăn chặn Render chặn kết nối vì chứng chỉ tự ký
         rejectUnauthorized: false 
     }
 });
