@@ -10,6 +10,8 @@ app.use(express.json());
 const PORT = 3000;
 const JWT_SECRET = 'susu_space_bi_mat_sieu_cap_2026'; // Chìa khóa mã hóa Token
 
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient('https://wdszsnshobvrxzdyexef.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indkc3pzbnNob2J2cnh6ZHlleGVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzAxNzYsImV4cCI6MjA5OTA0NjE3Nn0.uWnnC-qY9-BDV76iiKdX5gTE-X45Y_ETQI5It0Q3KsE');
 // ==========================================
 // 🛡️ MIDDLEWARE: KIỂM TRA ĐĂNG NHẬP (AUTH)
 // ==========================================
@@ -184,84 +186,19 @@ app.get('/', (req, res) => {
     res.send('🚀 Trạm không gian Susu Space Auth đang chạy cực ngon!');
 });
 
-const nodemailer = require('nodemailer');
-
-// ⚙️ Cấu hình hòm thư gửi Email tự động (Sử dụng Gmail)
-// Lưu ý: Để chạy được, bạn cần vào tài khoản Google tạo "Mật khẩu ứng dụng" (App Password)
-// ⚙️ CẤU HÌNH GỬI MAIL (ĐÃ SỬA ĐỂ PHÙ HỢP VỚI MÔI TRƯỜNG CLOUD CỦA RENDER)
-// ⚙️ CẤU HÌNH PHƯƠNG ÁN 1: DÙNG CỔNG SSL 465
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,              // Đổi sang cổng 465
-    secure: true,           // Bắt buộc đặt true khi dùng cổng 465
-    auth: {
-        user: 'nguyenxuanngoctran2006@gmail.com',
-        pass: 'bdyc nbve kdli uiga' // 16 ký tự mật khẩu ứng dụng viết liền
-    },
-    tls: {
-        rejectUnauthorized: false 
-    }
-});
-
-// 1. API: YÊU CẦU GỬI MÃ OTP QUÊN MẬT KHẨU
+// 1. API: YÊU CẦU SUPABASE GỬI MAIL ĐỔI MẬT KHẨU
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
-        // Kiểm tra xem email có tồn tại trong hệ thống không
-        const userCheck = await pool.query("SELECT * FROM auth.users WHERE email = $1", [email]);
-        if (userCheck.rows.length === 0) {
-            return res.status(400).json({ error: "Email này chưa được đăng ký trong hệ thống bạn ơi!" });
-        }
+        // Gọi Supabase gửi email khôi phục mật khẩu. 
+        // Sau khi dùng click vào link trong mail, họ sẽ được dẫn về link Frontend của bạn kèm mã token bảo mật.
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://susu-space-frontend.vercel.app/reset-password', // Đổi thành link Vercel thật của bạn
+        });
 
-        // Sinh mã OTP ngẫu nhiên gồm 6 chữ số
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        if (error) return res.status(400).json({ error: error.message });
 
-        // Lưu mã OTP vào bảng phụ (Xóa mã cũ của email này nếu có trước khi lưu mới)
-        await pool.query("DELETE FROM password_resets WHERE email = $1", [email]);
-        await pool.query("INSERT INTO password_resets (email, otp) VALUES ($1, $2)", [email, otp]);
-
-        // Cấu hình nội dung thư gửi đi
-        const mailOptions = {
-            from: '"Susu Space 🔮" <nguyenxuanngoctran2006@gmail.com>',
-            to: email,
-            subject: '🔮 Mã Khôi Phục Mật Khẩu Susu Space Của Bạn',
-            html: `
-                <div style="font-family: sans-serif; padding: 20px; background-color: #f3e8ff; border-radius: 20px;">
-                    <h2 style="color: #7e22ce;">Chào bạn hành tinh Susu Space!</h2>
-                    <p>Bạn hoặc ai đó đã yêu cầu khôi phục mật khẩu. Dưới đây là mã xác thực OTP của bạn:</p>
-                    <div style="font-size: 24px; font-weight: bold; color: #db2777; background: #ffffff; padding: 10px 20px; display: inline-block; border-radius: 10px; margin: 10px 0;">${otp}</div>
-                    <p>Mã này có hiệu lực trong vòng 15 phút. Tuyệt đối không chia sẻ mã này cho bất kỳ ai nha!</p>
-                </div>
-            `
-        };
-
-        // Bắn thư đi
-        await transporter.sendMail(mailOptions);
-        res.json({ message: "Mã OTP đã được gửi thẳng vào email của bạn rồi nhé!" });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 2. API: XÁC THỰC OTP VÀ ĐỔI MẬT KHẨU MỚI
-app.post('/api/auth/reset-password', async (req, res) => {
-    const { email, otp, newPassword } = req.body;
-    try {
-        // Kiểm tra xem mã OTP có đúng và khớp với email không
-        const checkOtp = await pool.query("SELECT * FROM password_resets WHERE email = $1 AND otp = $2", [email, otp]);
-        if (checkOtp.rows.length === 0) {
-            return res.status(400).json({ error: "Mã OTP không chính xác hoặc đã hết hạn rồi!" });
-        }
-
-        // Cập nhật mật khẩu mới vào bảng auth.users
-        await pool.query("UPDATE auth.users SET encrypted_password = $1, updated_at = NOW() WHERE email = $2", [newPassword, email]);
-
-        // Xóa mã OTP đi sau khi đã dùng xong để bảo mật
-        await pool.query("DELETE FROM password_resets WHERE email = $1", [email]);
-
-        res.json({ message: "Đổi mật khẩu thành công rực rỡ! Đăng nhập lại thôi nào bạn ơi!" });
-
+        res.json({ message: "Hệ thống đã gửi một đường link đặt lại mật khẩu vào Email của bạn rồi nhé!" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
