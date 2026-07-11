@@ -6,6 +6,8 @@ import 'react-quill-new/dist/quill.snow.css'
 const API_URL = 'https://susu-space.onrender.com/api';
 
 function App() {
+  const [authOtp, setAuthOtp] = useState('')
+  const [authNewPassword, setAuthNewPassword] = useState('')
   // --- STATE QUẢN LÝ XÁC THỰC (AUTH) ---
   const [token, setToken] = useState(localStorage.getItem('susu_token') || null)
   const [userEmail, setUserEmail] = useState(localStorage.getItem('susu_email') || '')
@@ -80,6 +82,29 @@ function App() {
       setAuthPassword('')
     } catch (error) {
       alert(`❌ Thất bại: ${error.response?.data?.error || "Lỗi kết nối mạng rồi!"}`)
+    }
+  }
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    try {
+      if (isAuthMode === 'forgot') {
+        // Bước gửi yêu cầu lấy mã OTP
+        if (!authEmail.trim()) return alert("🧸 Nhập email phát bạn ơi!");
+        await axios.post(`${API_URL}/auth/forgot-password`, { email: authEmail });
+        alert("🎉 Đã gửi mã OTP thành công! Check hòm thư của bạn liền nha!");
+        setIsAuthMode('reset'); // Chuyển sang màn hình nhập OTP
+      } else if (isAuthMode === 'reset') {
+        // Bước xác thực mã OTP và lưu pass mới
+        if (!authOtp.trim() || !authNewPassword.trim()) return alert("🧸 Điền đầy đủ thông tin nha!");
+        await axios.post(`${API_URL}/auth/reset-password`, { email: authEmail, otp: authOtp, newPassword: authNewPassword });
+        alert("✨ Đổi mật khẩu thành công! Quay lại đăng nhập thôi!");
+        setIsAuthMode('login');
+        setAuthOtp('');
+        setAuthNewPassword('');
+      }
+    } catch (error) {
+      alert(`❌ Lỗi: ${error.response?.data?.error || "Gặp sự cố rồi!"}`);
     }
   }
 
@@ -295,67 +320,64 @@ function App() {
     }
   }
 
+  // --- 🌟 CHIẾU MÀN HÌNH XÁC THỰC BỒNG BỀNH 🌟 ---
   if (!token) {
+    const isForgotOrReset = isAuthMode === 'forgot' || isAuthMode === 'reset';
+    
     return (
-      <div style={{ 
-        display: 'flex', 
-        height: '100vh', 
-        width: '100vw', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        background: 'linear-gradient(135deg, #fef08a 0%, #fbcfe8 50%, #cffafe 100%)', 
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'fixed', 
-        top: 0, 
-        left: 0,
-        margin: 0,
-        padding: 0,
-        boxSizing: 'border-box'
-      }}>
-        <form onSubmit={handleAuth} style={{ 
-          background: 'rgba(255, 255, 255, 0.45)', 
-          backdropFilter: 'blur(20px)', 
-          padding: isMobile ? '30px 20px' : '40px', 
-          borderRadius: '30px', 
-          border: '1px solid rgba(255, 255, 255, 0.5)', 
-          boxShadow: '0 20px 40px rgba(0,0,0,0.05)', 
-          width: isMobile ? '90%' : '360px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '20px',
-          fontFamily: 'inherit'
-        }}>
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', justifyContent: 'center', alignItems: 'center', background: 'linear-gradient(135deg, #fef08a 0%, #fbcfe8 50%, #cffafe 100%)', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', position: 'fixed', top: 0, left: 0, margin: 0, padding: 0, boxSizing: 'border-box' }}>
+        <form onSubmit={isForgotOrReset ? handleForgotPassword : handleAuth} style={{ background: 'rgba(255, 255, 255, 0.45)', backdropFilter: 'blur(20px)', padding: isMobile ? '30px 20px' : '40px', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.5)', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', width: isMobile ? '90%' : '360px', display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'inherit' }}>
           <div style={{ textAlign: 'center' }}>
             <span style={{ fontSize: '45px' }}>🔮</span>
             <h2 style={{ margin: '10px 0 5px 0', fontWeight: '900', background: 'linear-gradient(45deg, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'inherit' }}>Susu Space</h2>
-            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280', fontWeight: '700', fontFamily: 'inherit' }}>{isAuthMode === 'login' ? "ĐĂNG NHẬP TRẠM KHÔNG GIAN" : "ĐĂNG KÝ TÀI KHOẢN MỚI"}</p>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280', fontWeight: '700', fontFamily: 'inherit' }}>
+              {isAuthMode === 'login' && "ĐĂNG NHẬP TRẠM KHÔNG GIAN"}
+              {isAuthMode === 'register' && "ĐĂNG KÝ TÀI KHOẢN MỚI"}
+              {isAuthMode === 'forgot' && "KHÔI PHỤC MẬT KHẨU"}
+              {isAuthMode === 'reset' && "NHẬP MÃ XÁC THỰC OTP"}
+            </p>
           </div>
           
-          <input 
-            type="email" 
-            placeholder="✉️ Nhập Email của bạn..." 
-            value={authEmail} 
-            onChange={(e) => setAuthEmail(e.target.value)} 
-            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} 
-          />
-          <input 
-            type="password" 
-            placeholder="🔑 Nhập Mật khẩu..." 
-            value={authPassword} 
-            onChange={(e) => setAuthPassword(e.target.value)} 
-            style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} 
-          />
+          {/* Ô Email dùng chung cho các màn hình */}
+          {isAuthMode !== 'reset' && (
+            <input type="email" placeholder="✉️ Nhập Email của bạn..." value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+          )}
+
+          {/* Ô nhập Mật khẩu thông thường */}
+          {(isAuthMode === 'login' || isAuthMode === 'register') && (
+            <input type="password" placeholder="🔑 Nhập Mật khẩu..." value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+          )}
+
+          {/* Các ô nhập khi khôi phục OTP */}
+          {isAuthMode === 'reset' && (
+            <>
+              <input type="text" placeholder="🔢 Nhập 6 số OTP từ Email..." value={authOtp} onChange={(e) => setAuthOtp(e.target.value)} style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+              <input type="password" placeholder="🔑 Nhập Mật khẩu mới..." value={authNewPassword} onChange={(e) => setAuthNewPassword(e.target.value)} style={{ padding: '14px', borderRadius: '14px', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', fontSize: '14px', fontWeight: '600', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+            </>
+          )}
           
           <button type="submit" style={{ padding: '14px', background: 'linear-gradient(90deg, #ff007f, #7928ca)', color: 'white', border: 'none', borderRadius: '14px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 8px 20px rgba(244,63,94,0.2)', fontFamily: 'inherit' }}>
-            {isAuthMode === 'login' ? "🚀 Kích Hoạt Đăng Nhập" : "✨ Tạo Tài Khoản"}
+            {isAuthMode === 'login' && "🚀 Kích Hoạt Đăng Nhập"}
+            {isAuthMode === 'register' && "✨ Tạo Tài Khoản"}
+            {isAuthMode === 'forgot' && "📩 Gửi Mã OTP Qua Mail"}
+            {isAuthMode === 'reset' && "💾 Xác Nhận Đổi Mật Khẩu"}
           </button>
           
-          <p style={{ textAlign: 'center', margin: 0, fontSize: '13px', color: '#4b5563', fontWeight: '600', fontFamily: 'inherit' }}>
-            {isAuthMode === 'login' ? "Chưa có hành tinh riêng? " : "Đã có tài khoản từ trước? "}
-            <span onClick={() => setIsAuthMode(isAuthMode === 'login' ? 'register' : 'login')} style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: '800', textDecoration: 'underline', fontFamily: 'inherit' }}>
-              {isAuthMode === 'login' ? "Đăng ký ngay" : "Đăng nhập"}
-            </span>
-          </p>
+          {/* Thanh chuyển đổi điều hướng linh hoạt */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'center', fontSize: '12px', color: '#4b5563', fontWeight: '600', fontFamily: 'inherit' }}>
+            {isAuthMode === 'login' && (
+              <>
+                <p style={{ margin: 0 }}>Chưa có hành tinh riêng? <span onClick={() => setIsAuthMode('register')} style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: '800', textDecoration: 'underline' }}>Đăng ký ngay</span></p>
+                <p style={{ margin: 0 }}><span onClick={() => setIsAuthMode('forgot')} style={{ color: '#6b7280', cursor: 'pointer', fontWeight: '700', textDecoration: 'underline' }}>Quên mật khẩu rồi 🥺</span></p>
+              </>
+            )}
+            {isAuthMode === 'register' && (
+              <p style={{ margin: 0 }}>Đã có tài khoản từ trước? <span onClick={() => setIsAuthMode('login')} style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: '800', textDecoration: 'underline' }}>Đăng nhập</span></p>
+            )}
+            {isForgotOrReset && (
+              <p style={{ margin: 0 }}>Quay lại màn hình chính? <span onClick={() => setIsAuthMode('login')} style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: '800', textDecoration: 'underline' }}>Đăng nhập ngay</span></p>
+            )}
+          </div>
         </form>
       </div>
     )
