@@ -89,11 +89,15 @@ function App() {
     e.preventDefault();
     try {
       if (!authEmail.trim()) return alert("🧸 Nhập email phát bạn ơi!");
-      await axios.post(`${API_URL}/auth/forgot-password`, { email: authEmail });
+      const res = await axios.post(`${API_URL}/auth/forgot-password`, { email: authEmail });
       alert("🎉 Supabase đã gửi link khôi phục! Bạn hãy kiểm tra hòm thư (hoặc hộp thư Spam) liền nha!");
-      setIsAuthMode('login'); // Quay lại màn hình đăng nhập luôn để chờ họ click mail
+      setIsAuthMode('login'); 
     } catch (error) {
-      alert(`❌ Lỗi: ${error.response?.data?.error || "Gặp sự cố rồi!"}`);
+      // 🌟 Đoạn bóc tách lỗi chuẩn hóa để đọc được mọi kiểu dữ liệu từ Server trả về:
+      const serverError = error.response?.data?.error;
+      const errorMsg = typeof serverError === 'object' ? (serverError.message || JSON.stringify(serverError)) : serverError;
+      
+      alert(`❌ Lỗi: ${errorMsg || error.message || "Gặp sự cố rồi!"}`);
     }
   }
 
