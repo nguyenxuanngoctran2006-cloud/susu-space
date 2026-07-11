@@ -181,29 +181,41 @@ app.delete('/api/notes', authenticateToken, async (req, res) => {
 });
 
 // 4. API: TIẾP NHẬN VÀ CẬP NHẬT MẬT KHẨU MỚI VÀO SUPABASE
+// 4. API: TIẾP NHẬN VÀ CẬP NHẬT MẬT KHẨU MỚI VÀO SUPABASE
 app.post('/api/auth/update-password', async (req, res) => {
     const { password } = req.body;
-    // Lấy mã access_token cứu hộ mà Frontend gửi lên trong headers
     const authHeader = req.headers['authorization'];
     const accessToken = authHeader && authHeader.split(' ')[1];
 
     if (!accessToken) {
-        return res.status(401).json({ error: "Thiếu mã xác thực cứu hộ, không thể đổi pass!" });
+        return res.status(401).json({ error: "Thiếu mã xác thực cứu hộ, không thể đổi mật khẩu!" });
     }
 
     try {
-        // Dùng chính token cứu hộ của người dùng để thực hiện lệnh đổi mật khẩu an toàn
-        const { error } = await supabase.auth.admin.updateUserById(
-            // Supabase sẽ tự giải mã token để biết user nào đang thực hiện
-            (await supabase.auth.getUser(accessToken)).data.user.id,
-            { password: password }
-        );
+        // 🌟 TẠO MỘT CLIENT SUPABASE TẠM THỜI ĐỂ ĐẠI DIỆN CHO USER ĐANG ĐỔI PASS
+        const clientWithUserToken = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false
+            }
+        });
+
+        // Nạp token của user vào client này
+        await clientWithUserToken.auth.setSession({
+            access_token: accessToken,
+            refresh_token: accessToken // Có thể dùng chung trong luồng reset
+        });
+
+        // Thực hiện cập nhật mật khẩu bằng lệnh của chính User đó
+        const { error } = await clientWithUserToken.auth.updateUser({
+            password: password
+        });
 
         if (error) return res.status(400).json({ error: error.message });
 
         res.json({ message: "Đổi mật khẩu thành công rực rỡ! Tiến hành đăng nhập lại được rồi bạn ơi." });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err.message || JSON.stringify(err) });
     }
 });
 
