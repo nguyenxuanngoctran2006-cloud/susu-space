@@ -12,10 +12,15 @@ const JWT_SECRET = 'susu_space_bi_mat_sieu_cap_2026';
 
 const { createClient } = require('@supabase/supabase-js');
 // Khởi tạo Supabase Client chính xác
-const supabase = createClient(
-    'https://wdszsnshobvrxzdyexef.supabase.co', 
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indkc3pzbnNob2J2cnh6ZHlleGVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzAxNzYsImV4cCI6MjA5OTA0NjE3Nn0.uWnnC-qY9-BDV76iiKdX5gTE-X45Y_ETQI5It0Q3KsE'
-);
+// Thay thế đoạn khởi tạo cũ bằng đoạn mã bảo mật này:
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://wdszsnshobvrxzdyexef.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_ANON_KEY) {
+    console.error("⚠️ Thiếu biến môi trường SUPABASE_ANON_KEY rồi bạn ơi!");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================
 // 🛡️ MIDDLEWARE: KIỂM TRA ĐĂNG NHẬP (AUTH)
