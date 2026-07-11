@@ -193,7 +193,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         // Gọi Supabase gửi email khôi phục mật khẩu. 
         // Sau khi dùng click vào link trong mail, họ sẽ được dẫn về link Frontend của bạn kèm mã token bảo mật.
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://susu-space-frontend.vercel.app/reset-password', // Đổi thành link Vercel thật của bạn
+            redirectTo: 'https://susu-space.vercel.app/', // Đổi thành link Vercel thật của bạn
         });
 
         if (error) return res.status(400).json({ error: error.message });
